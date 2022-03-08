@@ -15,13 +15,7 @@
  */
 package io.netty.channel.nio;
 
-import io.netty.channel.Channel;
-import io.netty.channel.DefaultSelectStrategyFactory;
-import io.netty.channel.EventLoop;
-import io.netty.channel.EventLoopTaskQueueFactory;
-import io.netty.channel.MultithreadEventLoopGroup;
-import io.netty.channel.SelectStrategyFactory;
-import io.netty.channel.SingleThreadEventLoop;
+import io.netty.channel.*;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.EventExecutorChooserFactory;
 import io.netty.util.concurrent.RejectedExecutionHandler;
@@ -50,6 +44,7 @@ public class NioEventLoopGroup extends MultithreadEventLoopGroup {
      * {@link SelectorProvider} which is returned by {@link SelectorProvider#provider()}.
      */
     public NioEventLoopGroup(int nThreads) {
+        // 第二个参数，就是这个 group 包含的 executor
         this(nThreads, (Executor) null);
     }
 
@@ -70,6 +65,8 @@ public class NioEventLoopGroup extends MultithreadEventLoopGroup {
     }
 
     public NioEventLoopGroup(int nThreads, Executor executor) {
+        // 第三个参数 provider，用于提供 selector 和 selectable 的 channel
+        // 这个 provider 是当前 JVM 唯一的 provider
         this(nThreads, executor, SelectorProvider.provider());
     }
 
@@ -83,12 +80,13 @@ public class NioEventLoopGroup extends MultithreadEventLoopGroup {
     }
 
     public NioEventLoopGroup(int nThreads, ThreadFactory threadFactory,
-        final SelectorProvider selectorProvider, final SelectStrategyFactory selectStrategyFactory) {
+                             final SelectorProvider selectorProvider, final SelectStrategyFactory selectStrategyFactory) {
         super(nThreads, threadFactory, selectorProvider, selectStrategyFactory, RejectedExecutionHandlers.reject());
     }
 
     public NioEventLoopGroup(
             int nThreads, Executor executor, final SelectorProvider selectorProvider) {
+        // 第四个参数是 策略工厂实例
         this(nThreads, executor, selectorProvider, DefaultSelectStrategyFactory.INSTANCE);
     }
 
@@ -121,18 +119,18 @@ public class NioEventLoopGroup extends MultithreadEventLoopGroup {
     }
 
     /**
-     * @param nThreads the number of threads that will be used by this instance.
-     * @param executor the Executor to use, or {@code null} if default one should be used.
-     * @param chooserFactory the {@link EventExecutorChooserFactory} to use.
-     * @param selectorProvider the {@link SelectorProvider} to use.
-     * @param selectStrategyFactory the {@link SelectStrategyFactory} to use.
+     * @param nThreads                 the number of threads that will be used by this instance.
+     * @param executor                 the Executor to use, or {@code null} if default one should be used.
+     * @param chooserFactory           the {@link EventExecutorChooserFactory} to use.
+     * @param selectorProvider         the {@link SelectorProvider} to use.
+     * @param selectStrategyFactory    the {@link SelectStrategyFactory} to use.
      * @param rejectedExecutionHandler the {@link RejectedExecutionHandler} to use.
-     * @param taskQueueFactory the {@link EventLoopTaskQueueFactory} to use for
-     *                         {@link SingleThreadEventLoop#execute(Runnable)},
-     *                         or {@code null} if default one should be used.
-     * @param tailTaskQueueFactory the {@link EventLoopTaskQueueFactory} to use for
-     *                             {@link SingleThreadEventLoop#executeAfterEventLoopIteration(Runnable)},
-     *                             or {@code null} if default one should be used.
+     * @param taskQueueFactory         the {@link EventLoopTaskQueueFactory} to use for
+     *                                 {@link SingleThreadEventLoop#execute(Runnable)},
+     *                                 or {@code null} if default one should be used.
+     * @param tailTaskQueueFactory     the {@link EventLoopTaskQueueFactory} to use for
+     *                                 {@link SingleThreadEventLoop#executeAfterEventLoopIteration(Runnable)},
+     *                                 or {@code null} if default one should be used.
      */
     public NioEventLoopGroup(int nThreads, Executor executor, EventExecutorChooserFactory chooserFactory,
                              SelectorProvider selectorProvider,
@@ -149,7 +147,7 @@ public class NioEventLoopGroup extends MultithreadEventLoopGroup {
      * {@code 50}, which means the event loop will try to spend the same amount of time for I/O as for non-I/O tasks.
      */
     public void setIoRatio(int ioRatio) {
-        for (EventExecutor e: this) {
+        for (EventExecutor e : this) {
             ((NioEventLoop) e).setIoRatio(ioRatio);
         }
     }
@@ -159,13 +157,14 @@ public class NioEventLoopGroup extends MultithreadEventLoopGroup {
      * around the  infamous epoll 100% CPU bug.
      */
     public void rebuildSelectors() {
-        for (EventExecutor e: this) {
+        for (EventExecutor e : this) {
             ((NioEventLoop) e).rebuildSelector();
         }
     }
 
     @Override
     protected EventLoop newChild(Executor executor, Object... args) throws Exception {
+        // 把参数进行强转
         SelectorProvider selectorProvider = (SelectorProvider) args[0];
         SelectStrategyFactory selectStrategyFactory = (SelectStrategyFactory) args[1];
         RejectedExecutionHandler rejectedExecutionHandler = (RejectedExecutionHandler) args[2];

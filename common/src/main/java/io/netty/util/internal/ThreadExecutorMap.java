@@ -28,7 +28,8 @@ public final class ThreadExecutorMap {
 
     private static final FastThreadLocal<EventExecutor> mappings = new FastThreadLocal<EventExecutor>();
 
-    private ThreadExecutorMap() { }
+    private ThreadExecutorMap() {
+    }
 
     /**
      * Returns the current {@link EventExecutor} that uses the {@link Thread}, or {@code null} if none / unknown.
@@ -51,9 +52,12 @@ public final class ThreadExecutorMap {
     public static Executor apply(final Executor executor, final EventExecutor eventExecutor) {
         ObjectUtil.checkNotNull(executor, "executor");
         ObjectUtil.checkNotNull(eventExecutor, "eventExecutor");
+        // 这个创建的 Executor 是 NioEventlLoop 的成员变量 executor
         return new Executor() {
+            // NioEventLoop 的成员变量 executor 的execute 方法，调用 NioEventLoopGroup 的成员变量 executor 的 execute 方法
             @Override
             public void execute(final Runnable command) {
+                // 这个 executor 是 NioEventLoopGroup 所包含的 executor
                 executor.execute(apply(command, eventExecutor));
             }
         };
@@ -69,10 +73,12 @@ public final class ThreadExecutorMap {
         return new Runnable() {
             @Override
             public void run() {
+                // 记录当前正在执行的线程
                 setCurrentEventExecutor(eventExecutor);
                 try {
                     command.run();
                 } finally {
+                    // 执行完成，清除当前执行线程
                     setCurrentEventExecutor(null);
                 }
             }
