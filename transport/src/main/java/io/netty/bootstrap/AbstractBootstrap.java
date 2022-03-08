@@ -264,29 +264,40 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * Create a new {@link Channel} and bind it.
      */
     public ChannelFuture bind(SocketAddress localAddress) {
+        // 验证 group 和 channelFactory 是否为 null
         validate();
         return doBind(ObjectUtil.checkNotNull(localAddress, "localAddress"));
     }
 
     private ChannelFuture doBind(final SocketAddress localAddress) {
+        // 创建、初始化 channel，并将其注册到 selector，返回一个异步结果
+        // ChannelFuture 只可以查询异步操作结果，ChannelPromise 可以查询和修改异步操作结果
         final ChannelFuture regFuture = initAndRegister();
+        // 从异步结果中获取 channel
         final Channel channel = regFuture.channel();
+        // 异步操作中出现异常，则直接返回异步结果
         if (regFuture.cause() != null) {
             return regFuture;
         }
 
+        // 异步操作完成（结果可能是 正常结束、发生异常、任务取消）
         if (regFuture.isDone()) {
             // At this point we know that the registration was complete and successful.
             ChannelPromise promise = channel.newPromise();
+            // 绑定指定端口
             doBind0(regFuture, channel, localAddress, promise);
             return promise;
         } else {
+            // 处理异步操作未有结果的情况
             // Registration future is almost always fulfilled already, but just in case it's not.
             final PendingRegistrationPromise promise = new PendingRegistrationPromise(channel);
+            // 添加监听器
             regFuture.addListener(new ChannelFutureListener() {
+                // 当异步操作完成时触发
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
                     Throwable cause = future.cause();
+                    // 异步操作时，出现异常
                     if (cause != null) {
                         // Registration on the EventLoop failed so fail the ChannelPromise directly to not cause an
                         // IllegalStateException once we try to access the EventLoop of the Channel.
@@ -307,7 +318,11 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     final ChannelFuture initAndRegister() {
         Channel channel = null;
         try {
+            // 创建 channel
+            // ServerBootstrap 配置 channel 属性时，ChannelFactory 赋值的时 ReflectiveChannelFactory
+            // 所以，这里 newChannel，是调用 ReflectiveChannelFactory#newChannel
             channel = channelFactory.newChannel();
+            // 初始化 channel
             init(channel);
         } catch (Throwable t) {
             if (channel != null) {
@@ -319,7 +334,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             // as the Channel is not registered yet we need to force the usage of the GlobalEventExecutor
             return new DefaultChannelPromise(new FailedChannel(), GlobalEventExecutor.INSTANCE).setFailure(t);
         }
-
+        // 将 channel 注册到 selector
         ChannelFuture regFuture = config().group().register(channel);
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {

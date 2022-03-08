@@ -129,16 +129,20 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
 
     @Override
     void init(Channel channel) {
+        // 获取 ServerBootstrap 的 options 属性，并设置到 channel
         setChannelOptions(channel, newOptionsArray(), logger);
+        // 获取 ServerBootstrap 的 attr 属性，并设置到 channel
         setAttributes(channel, newAttributesArray());
 
         ChannelPipeline p = channel.pipeline();
 
+        // 把 ServerBootstrap 所有以 child 开头的属性写入到局部变量。将它们初始化到 childChannel
         final EventLoopGroup currentChildGroup = childGroup;
         final ChannelHandler currentChildHandler = childHandler;
         final Entry<ChannelOption<?>, Object>[] currentChildOptions = newOptionsArray(childOptions);
         final Entry<AttributeKey<?>, Object>[] currentChildAttrs = newAttributesArray(childAttrs);
 
+        // 添加初始化器，处理 childGroup 里面的 channel 的初始化操作
         p.addLast(new ChannelInitializer<Channel>() {
             @Override
             public void initChannel(final Channel ch) {
@@ -151,6 +155,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
                 ch.eventLoop().execute(new Runnable() {
                     @Override
                     public void run() {
+                        // 将 ServerBootstrapAcceptor 添加到 pipeline，用于接受 ServerBootstrap 的属性值
                         pipeline.addLast(new ServerBootstrapAcceptor(
                                 ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs));
                     }
