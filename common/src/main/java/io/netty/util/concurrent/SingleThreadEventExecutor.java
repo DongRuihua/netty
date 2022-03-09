@@ -351,6 +351,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         if (isShutdown()) {
             reject();
         }
+        // taskQueue 是在 创建 eventLoop 的 newChild 时创建的
         return taskQueue.offer(task);
     }
 
@@ -823,9 +824,12 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
     }
 
     private void execute(Runnable task, boolean immediate) {
+        // 判断当前线程与 eventLoop 绑定的线程是否同一个
         boolean inEventLoop = inEventLoop();
+        // 添加任务到队列
         addTask(task);
         if (!inEventLoop) {
+            // 创建并启动新线程
             startThread();
             if (isShutdown()) {
                 boolean reject = false;
@@ -939,10 +943,12 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
     private static final long SCHEDULE_PURGE_INTERVAL = TimeUnit.SECONDS.toNanos(1);
 
     private void startThread() {
+        // 如果当前 eventLoop 绑定线程还没有启动
         if (state == ST_NOT_STARTED) {
             if (STATE_UPDATER.compareAndSet(this, ST_NOT_STARTED, ST_STARTED)) {
                 boolean success = false;
                 try {
+                    // 创建并启动线程
                     doStartThread();
                     success = true;
                 } finally {
@@ -974,6 +980,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
 
     private void doStartThread() {
         assert thread == null;
+        // 调用 NioEventLoop 的成员变量 executor 的 execute 方法
         executor.execute(new Runnable() {
             @Override
             public void run() {
@@ -985,6 +992,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
                 boolean success = false;
                 updateLastExecutionTime();
                 try {
+                    // 执行一个不会停止的 for循环，用于完成任务队列的任务
                     SingleThreadEventExecutor.this.run();
                     success = true;
                 } catch (Throwable t) {

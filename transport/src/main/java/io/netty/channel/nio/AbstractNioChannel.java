@@ -370,6 +370,9 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         boolean selected = false;
         for (;;) {
             try {
+                // 将 NIO 原生 channel 注册到 NIO 原生 selector
+                // 第一个参数：selector 数组
+                // 第二个参数：当前监听的事件，0-不关注任何事件
                 selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this);
                 return;
             } catch (CancelledKeyException e) {

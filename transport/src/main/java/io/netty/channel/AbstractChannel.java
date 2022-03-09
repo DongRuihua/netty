@@ -476,13 +476,15 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                         new IllegalStateException("incompatible event loop type: " + eventLoop.getClass().getName()));
                 return;
             }
-
+            // channel 绑定 eventLoop
+            // 注意：此时 eventLoop 还没有绑定线程，因为还没创建线程
             AbstractChannel.this.eventLoop = eventLoop;
-
+            // 判断当前线程和 eventLoop 绑定的线程是否为同一个
             if (eventLoop.inEventLoop()) {
                 register0(promise);
             } else {
                 try {
+                    // 添加任务到队列，开启新线程处理
                     eventLoop.execute(new Runnable() {
                         @Override
                         public void run() {
@@ -508,6 +510,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                     return;
                 }
                 boolean firstRegistration = neverRegistered;
+                // 注册
                 doRegister();
                 neverRegistered = false;
                 registered = true;
