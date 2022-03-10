@@ -433,14 +433,18 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             try {
                 int strategy;
                 try {
+                    // 返回就绪的channel 数量
+                    // 如果没有就绪的channel，返回-1
+                    // 如果有就绪的channel，返回值 ≥ 0
                     strategy = selectStrategy.calculateStrategy(selectNowSupplier, hasTasks());
                     switch (strategy) {
+                        // NioEventLoop 不支持
                         case SelectStrategy.CONTINUE:
                             continue;
-
+                        // NioEventLoop 不支持
                         case SelectStrategy.BUSY_WAIT:
                             // fall-through to SELECT since the busy-wait is not supported with NIO
-
+                        // SELECT = -1，能执行到这里，说明当前队列没有任务
                         case SelectStrategy.SELECT:
                             long curDeadlineNanos = nextScheduledTaskDeadlineNanos();
                             if (curDeadlineNanos == -1L) {
@@ -449,6 +453,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                             nextWakeupNanos.set(curDeadlineNanos);
                             try {
                                 if (!hasTasks()) {
+                                    // 进行阻塞式选择
                                     strategy = select(curDeadlineNanos);
                                 }
                             } finally {
@@ -471,6 +476,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                 selectCnt++;
                 cancelledKeys = 0;
                 needsToSelectAgain = false;
+                // 该变量用于设置“处理就绪channel的IO所使用的时间”与“处理任务队列中任务使用时间”的比例 该值为整型，不大于100
                 final int ioRatio = this.ioRatio;
                 boolean ranTasks;
                 if (ioRatio == 100) {
@@ -483,12 +489,15 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                         ranTasks = runAllTasks();
                     }
                 } else if (strategy > 0) {
+                    // 记录 处理就绪channel的开始时间
                     final long ioStartTime = System.nanoTime();
                     try {
+                        // 处理就绪channel
                         processSelectedKeys();
                     } finally {
                         // Ensure we always run tasks.
                         final long ioTime = System.nanoTime() - ioStartTime;
+                        // 执行队列中的任务
                         ranTasks = runAllTasks(ioTime * (100 - ioRatio) / ioRatio);
                     }
                 } else {
@@ -797,6 +806,9 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     }
 
     int selectNow() throws IOException {
+        // NIO 非阻塞选择，返回就绪的 channel 数量
+        // 非阻塞选择：循环判断所有channel是否就绪，并返回就绪数量
+        // 阻塞选择：阻塞一定时间段
         return selector.selectNow();
     }
 
