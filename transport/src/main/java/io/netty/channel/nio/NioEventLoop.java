@@ -437,11 +437,12 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                     // 如果没有就绪的channel，返回-1
                     // 如果有就绪的channel，返回值 ≥ 0
                     strategy = selectStrategy.calculateStrategy(selectNowSupplier, hasTasks());
+                    // switch case 代码逻辑是：当任务队列没有任务时，阻塞select；有任务时，跳出switch case，执行后续逻辑
                     switch (strategy) {
-                        // NioEventLoop 不支持
+                        // -2，NioEventLoop 不支持
                         case SelectStrategy.CONTINUE:
                             continue;
-                        // NioEventLoop 不支持
+                        // -3，NioEventLoop 不支持
                         case SelectStrategy.BUSY_WAIT:
                             // fall-through to SELECT since the busy-wait is not supported with NIO
                         // SELECT = -1，能执行到这里，说明当前队列没有任务
@@ -581,9 +582,14 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     }
 
     private void processSelectedKeys() {
+        // 判断 channel 的 selectedKeys 是否优化过
+        // 优化就是将selectedKeys 的 set 集合转换成了数组
+        // 优化和非优化的处理唯一的区别就是处理的 selectedKeys对象是数组还是集合。
         if (selectedKeys != null) {
+            // 优化处理方式
             processSelectedKeysOptimized();
         } else {
+            // 普通处理方式
             processSelectedKeysPlain(selector.selectedKeys());
         }
     }
@@ -648,19 +654,21 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
     private void processSelectedKeysOptimized() {
         for (int i = 0; i < selectedKeys.size; ++i) {
+            // 从数组取出一个元素，并将原来位置置为null，有利于回收空间
             final SelectionKey k = selectedKeys.keys[i];
             // null out entry in the array to allow to have it GC'ed once the Channel close
             // See https://github.com/netty/netty/issues/2363
             selectedKeys.keys[i] = null;
-
+            // 获取 selectionKey的附件，该附件可以存放任意数据，这里存放的是NIO原生channel
             final Object a = k.attachment();
 
             if (a instanceof AbstractNioChannel) {
+                // 处理就绪事件
                 processSelectedKey(k, (AbstractNioChannel) a);
             } else {
                 @SuppressWarnings("unchecked")
                 NioTask<SelectableChannel> task = (NioTask<SelectableChannel>) a;
-                processSelectedKey(k, task);
+                processSelectedKey(k, task); // 测试代码
             }
 
             if (needsToSelectAgain) {
@@ -676,6 +684,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
     private void processSelectedKey(SelectionKey k, AbstractNioChannel ch) {
         final AbstractNioChannel.NioUnsafe unsafe = ch.unsafe();
+        // 处理selectionKey 失效的情况
         if (!k.isValid()) {
             final EventLoop eventLoop;
             try {
@@ -698,28 +707,38 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
 
         try {
+            // 获取当前channel 的就绪事件类型
             int readyOps = k.readyOps();
             // We first need to call finishConnect() before try to trigger a read(...) or write(...) as otherwise
             // the NIO JDK channel implementation may throw a NotYetConnectedException.
+
+            // 处理连接就绪事件
             if ((readyOps & SelectionKey.OP_CONNECT) != 0) {
                 // remove OP_CONNECT as otherwise Selector.select(..) will always return without blocking
                 // See https://github.com/netty/netty/issues/924
+                // 获取当前 selectionKey 的 interestOps
                 int ops = k.interestOps();
+                // 先将 SelectionKey.OP_CONNECT 按位取或，再与ops按位与
                 ops &= ~SelectionKey.OP_CONNECT;
+                // 将修改过的ops再写入到selectionsKey中
                 k.interestOps(ops);
-
+                // 连接server
                 unsafe.finishConnect();
             }
 
             // Process OP_WRITE first as we may be able to write some queued buffers and so free memory.
+            // 处理写就绪事件
             if ((readyOps & SelectionKey.OP_WRITE) != 0) {
                 // Call forceFlush which will also take care of clear the OP_WRITE once there is nothing left to write
+                // 强制刷新（将user buffer中的数据写入到网关缓存）
                 ch.unsafe().forceFlush();
             }
 
             // Also check for readOps of 0 to workaround possible JDK bug which may otherwise lead
             // to a spin loop
+            // 读就绪事件 或者 有新增任务（readOps = 0）
             if ((readyOps & (SelectionKey.OP_READ | SelectionKey.OP_ACCEPT)) != 0 || readyOps == 0) {
+                // 将网卡缓存中的数据写入到user buffer
                 unsafe.read();
             }
         } catch (CancelledKeyException ignored) {
