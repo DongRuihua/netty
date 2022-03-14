@@ -562,7 +562,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                         "is not bound to a wildcard address; binding to a non-wildcard " +
                         "address (" + localAddress + ") anyway as requested.");
             }
-
+            // 获取当前 channel 是否被激活
             boolean wasActive = isActive();
             try {
                 doBind(localAddress);

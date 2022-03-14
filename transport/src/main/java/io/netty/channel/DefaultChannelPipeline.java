@@ -91,9 +91,11 @@ public class DefaultChannelPipeline implements ChannelPipeline {
 
     protected DefaultChannelPipeline(Channel channel) {
         this.channel = ObjectUtil.checkNotNull(channel, "channel");
+        // 创建记录成功的 Future
         succeededFuture = new SucceededChannelFuture(channel, null);
+        // 创建记录异常的 voidPromise，创建一个异常监听器，触发重写的 fireExceptionCaught
         voidPromise =  new VoidChannelPromise(channel, true);
-
+        // 创建头尾节点，并连接起来
         tail = new TailContext(this);
         head = new HeadContext(this);
 
@@ -1242,10 +1244,12 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     }
 
     // A special catch-all handler that handles both bytes and messages.
+    // 尾节点，是一个 inbound 处理器，其方法都是回调方法，用于进行一些收尾性工作，比如释放一些变量
     final class TailContext extends AbstractChannelHandlerContext implements ChannelInboundHandler {
 
         TailContext(DefaultChannelPipeline pipeline) {
             super(pipeline, null, TAIL_NAME, TailContext.class);
+            // 修改节点的处理器状态
             setAddComplete();
         }
 

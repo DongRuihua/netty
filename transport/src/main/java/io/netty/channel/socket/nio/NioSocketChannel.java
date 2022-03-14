@@ -78,6 +78,7 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
      * Create a new instance
      */
     public NioSocketChannel() {
+        // DEFAULT_SELECTOR_PROVIDER：全局唯一的 provider，通过它可以创建出 selector 和 channel
         this(DEFAULT_SELECTOR_PROVIDER);
     }
 
@@ -85,6 +86,7 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
      * Create a new instance using the given {@link SelectorProvider}.
      */
     public NioSocketChannel(SelectorProvider provider) {
+        // newSocket(provider)：通过 provider.openSocketChannel()，创建原生的 SocketChannel
         this(newSocket(provider));
     }
 
@@ -312,8 +314,10 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
 
         boolean success = false;
         try {
+            // 连接server地址，若本次连接成功，则成功；若不成功，则当前channel的连接就绪
             boolean connected = SocketUtils.connect(javaChannel(), remoteAddress);
             if (!connected) {
+                // 指定其关注的事件为 连接就绪
                 selectionKey().interestOps(SelectionKey.OP_CONNECT);
             }
             success = true;

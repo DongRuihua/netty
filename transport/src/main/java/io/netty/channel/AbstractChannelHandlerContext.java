@@ -526,8 +526,9 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
             // cancelled
             return promise;
         }
-
+        // 查找要处理该请求的处理器节点
         final AbstractChannelHandlerContext next = findContextOutbound(MASK_CONNECT);
+        // 获取处理器节点的executor
         EventExecutor executor = next.executor();
         if (executor.inEventLoop()) {
             next.invokeConnect(remoteAddress, localAddress, promise);
@@ -913,13 +914,16 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
 
     final boolean setAddComplete() {
         for (;;) {
+            // 获取处理器状态
             int oldState = handlerState;
+            // 处理器状态为移除状态
             if (oldState == REMOVE_COMPLETE) {
                 return false;
             }
             // Ensure we never update when the handlerState is REMOVE_COMPLETE already.
             // oldState is usually ADD_PENDING but can also be REMOVE_COMPLETE when an EventExecutor is used that is not
             // exposing ordering guarantees.
+            // 通过CAS方式，将处理器状态设置为 添加完毕
             if (HANDLER_STATE_UPDATER.compareAndSet(this, oldState, ADD_COMPLETE)) {
                 return true;
             }
