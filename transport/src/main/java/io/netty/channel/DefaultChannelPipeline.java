@@ -119,6 +119,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     }
 
     private AbstractChannelHandlerContext newContext(EventExecutorGroup group, String name, ChannelHandler handler) {
+        // childExecutor() 获取与当前处理器节点绑定的 eventLoop
         return new DefaultChannelHandlerContext(this, childExecutor(group), name, handler);
     }
 
@@ -194,6 +195,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
 
     @Override
     public final ChannelPipeline addLast(String name, ChannelHandler handler) {
+        // name：处理器名称
         return addLast(null, name, handler);
     }
 
@@ -201,10 +203,11 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     public final ChannelPipeline addLast(EventExecutorGroup group, String name, ChannelHandler handler) {
         final AbstractChannelHandlerContext newCtx;
         synchronized (this) {
+            // 检查处理器是否被多次田间
             checkMultiplicity(handler);
-
+            // 将处理器包装成一个新节点
             newCtx = newContext(group, filterName(name, handler), handler);
-
+            // 添加到 pipeline
             addLast0(newCtx);
 
             // If the registered is false it means that the channel was not registered on an eventLoop yet.
@@ -215,7 +218,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
                 callHandlerCallbackLater(newCtx, true);
                 return this;
             }
-
+            // 获取新节点的 eventLoop，判断是否为当前线程
             EventExecutor executor = newCtx.executor();
             if (!executor.inEventLoop()) {
                 callHandlerAddedInEventLoop(newCtx, executor);
@@ -1136,6 +1139,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     }
 
     private void callHandlerAddedInEventLoop(final AbstractChannelHandlerContext newCtx, EventExecutor executor) {
+        // 将当前节点状态设置成处理中，等待 callHandlerAdded0 执行完成
         newCtx.setAddPending();
         executor.execute(new Runnable() {
             @Override
